@@ -29,7 +29,7 @@ export const CREDIT_CARDS: CreditCard[] = [
     annualFee: 550,
     annualCredits: [
       { description: "$300 annual travel credit", value: 300 },
-      { description: "Priority Pass lounge access", value: 50 },
+      { description: "Priority Pass lounge access (~8 visits/yr)", value: 150 },
     ],
     rewardType: "points",
     pointValue: 1.5,
@@ -78,7 +78,7 @@ export const CREDIT_CARDS: CreditCard[] = [
       { description: "$100 Saks Fifth Avenue credit", value: 100 },
       { description: "$300 Equinox credit", value: 300 },
       { description: "Global Entry / TSA PreCheck credit (~$25/yr amortized)", value: 25 },
-      { description: "Centurion & Priority Pass lounge access", value: 75 },
+      { description: "Centurion & Priority Pass lounge access", value: 200 },
     ],
     rewardType: "points",
     pointValue: 2.0,
@@ -111,7 +111,7 @@ export const CREDIT_CARDS: CreditCard[] = [
     annualCredits: [
       { description: "$300 annual travel credit (Capital One Travel)", value: 300 },
       { description: "10,000 anniversary bonus miles (~$100 value)", value: 100 },
-      { description: "Priority Pass & Capital One lounge access", value: 50 },
+      { description: "Priority Pass & Capital One lounge access (~6 visits/yr)", value: 100 },
       { description: "Global Entry / TSA PreCheck credit (~$25/yr amortized)", value: 25 },
     ],
     rewardType: "miles",

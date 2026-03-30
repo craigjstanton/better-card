@@ -80,6 +80,12 @@ function WinnerCard({
   isNone: boolean;
 }) {
   const { card } = rec;
+  const hasBenefits = rec.totalCreditsValue > 0;
+  // Base net = rewards only, full sticker fee, no credits
+  const baseNetValue = rec.estimatedAnnualValue - card.annualFee;
+  // Full benefits net = rewards + credits - fee (this is netAnnualValue)
+  const fullBenefitsValue = rec.netAnnualValue;
+
   const topCategories = rec.breakdown
     .filter((b) => b.value > 0 && b.rewardRate > card.baseRewardRate)
     .sort((a, b) => b.value - a.value)
@@ -137,15 +143,20 @@ function WinnerCard({
         )}
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3 relative mb-4">
+      {/* Base stats row: rewards / annual fee / base net */}
+      <div className="grid grid-cols-3 gap-3 relative mb-3">
         {[
           { label: "Rewards / yr", value: `$${rec.estimatedAnnualValue.toFixed(0)}` },
           {
-            label: rec.totalCreditsValue > 0 ? "Effective fee" : "Annual fee",
-            value: rec.effectiveAnnualFee === 0 ? "Free!" : `$${rec.effectiveAnnualFee.toFixed(0)}`,
+            label: "Annual fee",
+            value: card.annualFee === 0 ? "None" : `$${card.annualFee}`,
           },
-          { label: "Net value", value: `$${rec.netAnnualValue.toFixed(0)}` },
+          {
+            label: "Base net / yr",
+            value: baseNetValue >= 0
+              ? `$${baseNetValue.toFixed(0)}`
+              : `–$${Math.abs(baseNetValue).toFixed(0)}`,
+          },
         ].map(({ label, value }) => (
           <div key={label} className="bg-white/15 rounded-2xl px-3 py-3 text-center">
             <p className="text-[10px] text-green-100 leading-tight mb-1">{label}</p>
@@ -153,17 +164,45 @@ function WinnerCard({
           </div>
         ))}
       </div>
+      {!hasBenefits && (
+        <p className="text-[10px] text-green-200/70 text-center mb-4">
+          No annual credits or perks — rewards are your total value.
+        </p>
+      )}
 
-      {/* Credits/perks breakdown */}
+      {/* With full benefits panel */}
+      {hasBenefits && (
+        <div className="relative bg-white/20 border border-white/30 rounded-2xl px-4 py-3.5 mb-4">
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-green-100 mb-0.5">
+                ✦ With full benefits
+              </p>
+              {/* Formula: rewards + credits − fee = total */}
+              <p className="text-[11px] text-green-200 leading-relaxed">
+                ${rec.estimatedAnnualValue.toFixed(0)} rewards
+                {" "}+{" "}
+                ${rec.totalCreditsValue} credits
+                {" "}−{" "}
+                ${card.annualFee} fee
+              </p>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-2xl font-extrabold leading-none">${fullBenefitsValue.toFixed(0)}</p>
+              <p className="text-[10px] text-green-100 mt-0.5">/ year total</p>
+            </div>
+          </div>
+          <p className="text-[10px] text-green-200/70 border-t border-white/10 pt-2">
+            Assumes you use all included credits & perks
+          </p>
+        </div>
+      )}
+
+      {/* Credits/perks detail list */}
       {card.annualCredits.length > 0 && (
         <div className="relative bg-white/10 rounded-2xl px-4 py-3 mb-4">
           <p className="text-green-100 text-[10px] font-semibold uppercase tracking-wide mb-2">
-            ${rec.totalCreditsValue} in annual credits & perks
-            {card.annualFee > 0 && (
-              <span className="ml-1 normal-case font-normal">
-                (reduces ${card.annualFee} fee to ${rec.effectiveAnnualFee})
-              </span>
-            )}
+            ${rec.totalCreditsValue} in included credits & perks
           </p>
           <div className="space-y-1">
             {card.annualCredits.map((credit) => (
@@ -210,6 +249,10 @@ function RunnerUpCard({
   isNone: boolean;
 }) {
   const { card } = rec;
+  const hasBenefits = rec.totalCreditsValue > 0;
+  const baseNetValue = rec.estimatedAnnualValue - card.annualFee;
+  const fullBenefitsValue = rec.netAnnualValue;
+
   const issuerClass = ISSUER_COLOR[card.issuer] ?? "bg-gray-100 text-gray-600";
   const rewardTypeLabel =
     card.rewardType === "cashback" ? "Cash Back"
@@ -240,6 +283,7 @@ function RunnerUpCard({
         {/* Info panel */}
         <div className="flex-1 min-w-0 px-4 sm:px-5 py-4">
           <div className="flex items-start justify-between gap-3">
+            {/* Left: name + fee info */}
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${issuerClass}`}>
@@ -250,32 +294,60 @@ function RunnerUpCard({
                 </span>
               </div>
               <h3 className="font-semibold text-gray-900 leading-tight text-sm">{card.name}</h3>
-              <p className="text-xs text-gray-400 mt-1">
+
+              {/* Fee line */}
+              <p className="text-xs text-gray-400 mt-0.5">
                 {card.annualFee === 0 ? (
                   <span className="text-green-600 font-medium">No annual fee</span>
-                ) : rec.effectiveAnnualFee === 0 ? (
-                  <span className="text-green-600 font-medium">Fee fully offset by credits</span>
                 ) : (
-                  <>
-                    <span className="line-through text-gray-300">${card.annualFee}</span>
-                    {" "}
-                    <span className="text-gray-500">→ ${rec.effectiveAnnualFee} effective fee</span>
-                  </>
+                  <span className="text-gray-400">${card.annualFee}/yr fee</span>
                 )}
               </p>
+
+              {/* Formula line — only when there are credits */}
+              {hasBenefits && (
+                <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                  ${rec.estimatedAnnualValue.toFixed(0)} rewards
+                  {" "}+{" "}
+                  <span className="text-green-600 font-medium">${rec.totalCreditsValue} credits</span>
+                  {" "}−{" "}${card.annualFee} fee
+                </p>
+              )}
             </div>
 
-            {/* Net value */}
+            {/* Right: value(s) */}
             <div className="flex-shrink-0 text-right">
-              <p className="text-xl font-bold text-green-600">${rec.netAnnualValue.toFixed(0)}</p>
-              <p className="text-[10px] text-gray-400 leading-tight">net / year</p>
+              {hasBenefits ? (
+                <>
+                  {/* With full benefits — primary value */}
+                  <p className="text-xl font-bold text-green-600">${fullBenefitsValue.toFixed(0)}</p>
+                  <p className="text-[10px] text-gray-400 leading-tight">with benefits / yr</p>
+                  {/* Base rewards — secondary value */}
+                  <p className={`text-sm font-semibold mt-1 ${baseNetValue >= 0 ? "text-gray-500" : "text-gray-400"}`}>
+                    {baseNetValue >= 0 ? `$${baseNetValue.toFixed(0)}` : `–$${Math.abs(baseNetValue).toFixed(0)}`}
+                  </p>
+                  <p className="text-[10px] text-gray-300 leading-tight">base only</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-xl font-bold text-green-600">${rec.netAnnualValue.toFixed(0)}</p>
+                  <p className="text-[10px] text-gray-400 leading-tight">net / year</p>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Delta row */}
+          {/* Delta badge */}
           <div className="mt-2.5">
             <DeltaBadge delta={delta} isCurrentCard={isCurrentCard} isNone={isNone} />
           </div>
+
+          {/* Benefits note */}
+          {hasBenefits && (
+            <p className="text-[10px] text-gray-300 mt-1.5">
+              With benefits assumes full credit usage
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -350,7 +422,8 @@ export default function CardRecommendations({ result, currentCardId }: Props) {
       )}
 
       <p className="text-xs text-gray-400 text-center pt-2">
-        Estimates based on your spending patterns. Actual rewards may vary. Review card terms before applying.
+        Estimates based on your spending patterns. &ldquo;With benefits&rdquo; assumes full usage of all credits &amp; perks.
+        Actual rewards may vary. Review card terms before applying.
       </p>
     </div>
   );
