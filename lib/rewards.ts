@@ -76,8 +76,10 @@ export function calculateCardValue(
   }
 
   const totalCreditsValue = card.annualCredits.reduce((sum, c) => sum + c.value, 0);
+  // effectiveAnnualFee is used only for display (the "sticker after credits" label).
+  // netAnnualValue uses the full formula so surplus credit value is never lost.
   const effectiveAnnualFee = Math.max(0, card.annualFee - totalCreditsValue);
-  const netAnnualValue = rewardsValue - effectiveAnnualFee;
+  const netAnnualValue = rewardsValue + totalCreditsValue - card.annualFee;
 
   return {
     card,
