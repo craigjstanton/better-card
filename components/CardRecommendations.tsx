@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 import { CardRecommendation, AnalysisResult } from "@/types";
 
 interface Props {
@@ -73,13 +74,16 @@ function WinnerCard({
   delta,
   isCurrentCard,
   isNone,
+  reasoning,
 }: {
   rec: CardRecommendation;
   delta: number;
   isCurrentCard: boolean;
   isNone: boolean;
+  reasoning?: string;
 }) {
   const { card } = rec;
+  const [showReasoning, setShowReasoning] = useState(false);
   const hasBenefits = rec.totalCreditsValue > 0;
   // Base net = rewards only, full sticker fee, no credits
   const baseNetValue = rec.estimatedAnnualValue - card.annualFee;
@@ -97,11 +101,41 @@ function WinnerCard({
       <div className="absolute top-0 right-0 w-56 h-56 bg-white/10 rounded-full -translate-y-20 translate-x-20" />
       <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-12 -translate-x-8" />
 
-      {/* Winner badge */}
+      {/* Winner badge row */}
       <div className="flex items-center justify-between mb-4 relative">
-        <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/30">
-          🏆 Best Match for You
-        </span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/30">
+            🏆 Best Match for You
+          </span>
+
+          {/* Why this card wins — hover/tap for popover */}
+          {reasoning && (
+            <div
+              className="relative"
+              onMouseEnter={() => setShowReasoning(true)}
+              onMouseLeave={() => setShowReasoning(false)}
+            >
+              <button
+                onClick={() => setShowReasoning((v) => !v)}
+                className="bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/30 hover:bg-white/30 transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                ✦ Why this card wins
+                <span className="text-white/60 text-[10px]">▾</span>
+              </button>
+
+              {showReasoning && (
+                <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl p-4 shadow-2xl z-30 border border-gray-100">
+                  <p className="text-xs font-semibold text-green-700 mb-1.5 flex items-center gap-1.5">
+                    <span className="w-4 h-4 bg-green-500 rounded-md flex items-center justify-center text-white text-[9px]">✦</span>
+                    Why this card wins for you
+                  </p>
+                  <p className="text-xs text-gray-600 leading-relaxed">{reasoning}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/20 text-white">
           #{rec.rank}
         </span>
@@ -378,19 +412,6 @@ export default function CardRecommendations({ result, currentCardId }: Props) {
         </p>
       </div>
 
-      {/* AI reasoning callout */}
-      {result.reasoning && (
-        <div className="flex gap-4 bg-green-50 border border-green-100 rounded-2xl p-5">
-          <div className="flex-shrink-0 w-9 h-9 bg-green-500 rounded-xl flex items-center justify-center text-white text-base">
-            ✦
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-green-800 mb-1">Why this card wins for you</p>
-            <p className="text-sm text-green-700 leading-relaxed">{result.reasoning}</p>
-          </div>
-        </div>
-      )}
-
       {/* Winner */}
       {winner && (
         <WinnerCard
@@ -398,6 +419,7 @@ export default function CardRecommendations({ result, currentCardId }: Props) {
           delta={winner.netAnnualValue - currentCardNetValue}
           isCurrentCard={!isNone && winner.card.id === currentCardId}
           isNone={isNone}
+          reasoning={result.reasoning}
         />
       )}
 
