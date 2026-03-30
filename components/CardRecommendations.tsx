@@ -5,6 +5,7 @@ import { CardRecommendation, AnalysisResult } from "@/types";
 
 interface Props {
   result: AnalysisResult;
+  currentCardId: string; // "none" or a card id
 }
 
 const ISSUER_COLOR: Record<string, string> = {
@@ -16,31 +17,68 @@ const ISSUER_COLOR: Record<string, string> = {
   "Wells Fargo": "bg-yellow-100 text-yellow-700",
 };
 
-function CardImage({
-  src,
-  alt,
-  className,
+/** Format a signed dollar delta, e.g. +$240 or –$30 */
+function formatDelta(delta: number): string {
+  const abs = Math.abs(Math.round(delta));
+  return delta >= 0 ? `+$${abs}` : `–$${abs}`;
+}
+
+/** Returns the delta label copy */
+function deltaLabel(delta: number, isNone: boolean): string {
+  if (isNone) {
+    return `You'd earn $${Math.round(delta)}/yr starting from scratch`;
+  }
+  if (delta > 0) {
+    return `$${Math.round(delta)}/yr more than your current card`;
+  }
+  if (delta < 0) {
+    return `$${Math.round(Math.abs(delta))}/yr less than your current card`;
+  }
+  return "Same as your current card";
+}
+
+function DeltaBadge({
+  delta,
+  isCurrentCard,
+  isNone,
+  size = "sm",
 }: {
-  src?: string;
-  alt: string;
-  className?: string;
+  delta: number;
+  isCurrentCard: boolean;
+  isNone: boolean;
+  size?: "sm" | "lg";
 }) {
-  if (!src) return null;
+  if (isCurrentCard) {
+    return (
+      <span className={`inline-flex items-center gap-1 font-semibold rounded-full bg-blue-50 text-blue-600 border border-blue-100 ${size === "lg" ? "px-4 py-2 text-sm" : "px-3 py-1 text-xs"}`}>
+        ★ Your current card
+      </span>
+    );
+  }
+
+  const positive = isNone || delta > 0;
+  const colorClass = positive
+    ? "bg-green-50 text-green-700 border-green-200"
+    : "bg-gray-50 text-gray-500 border-gray-200";
+
   return (
-    <div className={`relative ${className}`}>
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        className="object-contain drop-shadow-md"
-        sizes="(max-width: 640px) 220px, 278px"
-        unoptimized // serve as-is; these are already optimized PNGs
-      />
-    </div>
+    <span className={`inline-flex items-center gap-1.5 font-semibold rounded-full border ${colorClass} ${size === "lg" ? "px-4 py-2 text-sm" : "px-3 py-1 text-xs"}`}>
+      {positive ? "▲" : "▼"} {formatDelta(delta)}/yr {isNone ? "potential" : delta >= 0 ? "more" : "less"}
+    </span>
   );
 }
 
-function WinnerCard({ rec }: { rec: CardRecommendation }) {
+function WinnerCard({
+  rec,
+  delta,
+  isCurrentCard,
+  isNone,
+}: {
+  rec: CardRecommendation;
+  delta: number;
+  isCurrentCard: boolean;
+  isNone: boolean;
+}) {
   const { card } = rec;
   const topCategories = rec.breakdown
     .filter((b) => b.value > 0 && b.rewardRate > card.baseRewardRate)
@@ -81,6 +119,22 @@ function WinnerCard({ rec }: { rec: CardRecommendation }) {
           <h3 className="text-2xl font-bold leading-tight">{card.name}</h3>
           <p className="text-green-100 text-sm mt-0.5">{card.issuer}</p>
         </div>
+      </div>
+
+      {/* Delta banner */}
+      <div className={`relative rounded-2xl px-4 py-3 mb-4 flex items-center gap-3 ${isCurrentCard ? "bg-blue-500/30 border border-blue-300/40" : "bg-white/15"}`}>
+        {isCurrentCard ? (
+          <p className="text-sm font-semibold">★ This is already your current card</p>
+        ) : (
+          <>
+            <span className="text-2xl font-extrabold leading-none">
+              {isNone || delta > 0 ? "+" : "–"}${Math.round(Math.abs(delta))}
+            </span>
+            <span className="text-sm text-green-100 leading-snug">
+              {deltaLabel(delta, isNone)}
+            </span>
+          </>
+        )}
       </div>
 
       {/* Stats row */}
@@ -144,7 +198,17 @@ function WinnerCard({ rec }: { rec: CardRecommendation }) {
   );
 }
 
-function RunnerUpCard({ rec }: { rec: CardRecommendation }) {
+function RunnerUpCard({
+  rec,
+  delta,
+  isCurrentCard,
+  isNone,
+}: {
+  rec: CardRecommendation;
+  delta: number;
+  isCurrentCard: boolean;
+  isNone: boolean;
+}) {
   const { card } = rec;
   const issuerClass = ISSUER_COLOR[card.issuer] ?? "bg-gray-100 text-gray-600";
   const rewardTypeLabel =
@@ -153,7 +217,7 @@ function RunnerUpCard({ rec }: { rec: CardRecommendation }) {
     : "Points";
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 hover:border-green-200 hover:shadow-md transition-all duration-200 overflow-hidden">
+    <div className={`bg-white rounded-2xl border transition-all duration-200 overflow-hidden ${isCurrentCard ? "border-blue-200 shadow-sm shadow-blue-50" : "border-gray-100 hover:border-green-200 hover:shadow-md"}`}>
       <div className="flex items-stretch">
         {/* Card image panel */}
         <div className="flex-shrink-0 w-[140px] sm:w-[180px] bg-gray-50 flex items-center justify-center p-4 border-r border-gray-100">
@@ -174,36 +238,43 @@ function RunnerUpCard({ rec }: { rec: CardRecommendation }) {
         </div>
 
         {/* Info panel */}
-        <div className="flex-1 min-w-0 flex items-center justify-between gap-3 px-4 sm:px-5 py-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${issuerClass}`}>
-                {card.issuer}
-              </span>
-              <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                {rewardTypeLabel}
-              </span>
+        <div className="flex-1 min-w-0 px-4 sm:px-5 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${issuerClass}`}>
+                  {card.issuer}
+                </span>
+                <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                  {rewardTypeLabel}
+                </span>
+              </div>
+              <h3 className="font-semibold text-gray-900 leading-tight text-sm">{card.name}</h3>
+              <p className="text-xs text-gray-400 mt-1">
+                {card.annualFee === 0 ? (
+                  <span className="text-green-600 font-medium">No annual fee</span>
+                ) : rec.effectiveAnnualFee === 0 ? (
+                  <span className="text-green-600 font-medium">Fee fully offset by credits</span>
+                ) : (
+                  <>
+                    <span className="line-through text-gray-300">${card.annualFee}</span>
+                    {" "}
+                    <span className="text-gray-500">→ ${rec.effectiveAnnualFee} effective fee</span>
+                  </>
+                )}
+              </p>
             </div>
-            <h3 className="font-semibold text-gray-900 leading-tight text-sm">{card.name}</h3>
-            <p className="text-xs text-gray-400 mt-1">
-              {card.annualFee === 0 ? (
-                <span className="text-green-600 font-medium">No annual fee</span>
-              ) : rec.effectiveAnnualFee === 0 ? (
-                <span className="text-green-600 font-medium">Fee fully offset by credits</span>
-              ) : (
-                <>
-                  <span className="line-through text-gray-300">${card.annualFee}</span>
-                  {" "}
-                  <span className="text-gray-500">→ ${rec.effectiveAnnualFee} effective fee</span>
-                </>
-              )}
-            </p>
+
+            {/* Net value */}
+            <div className="flex-shrink-0 text-right">
+              <p className="text-xl font-bold text-green-600">${rec.netAnnualValue.toFixed(0)}</p>
+              <p className="text-[10px] text-gray-400 leading-tight">net / year</p>
+            </div>
           </div>
 
-          {/* Net value */}
-          <div className="flex-shrink-0 text-right">
-            <p className="text-xl font-bold text-green-600">${rec.netAnnualValue.toFixed(0)}</p>
-            <p className="text-[10px] text-gray-400 leading-tight">net / year</p>
+          {/* Delta row */}
+          <div className="mt-2.5">
+            <DeltaBadge delta={delta} isCurrentCard={isCurrentCard} isNone={isNone} />
           </div>
         </div>
       </div>
@@ -211,15 +282,27 @@ function RunnerUpCard({ rec }: { rec: CardRecommendation }) {
   );
 }
 
-export default function CardRecommendations({ result }: Props) {
+export default function CardRecommendations({ result, currentCardId }: Props) {
   const [winner, ...runnerUps] = result.recommendations;
+  const isNone = currentCardId === "none";
+
+  // Find the current card's net value from the ranked results
+  const currentCardNetValue = isNone
+    ? 0
+    : (result.recommendations.find((r) => r.card.id === currentCardId)?.netAnnualValue ?? 0);
+
+  const currentCardName = isNone
+    ? null
+    : CREDIT_CARDS_LOOKUP[currentCardId] ?? null;
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Your Card Matches</h2>
         <p className="text-gray-500 text-sm mt-1">
-          Ranked by estimated net annual value based on your actual spending
+          {isNone
+            ? "Ranked by estimated net annual value based on your actual spending"
+            : `Compared to your ${currentCardName ?? "current card"} · ranked by net annual value`}
         </p>
       </div>
 
@@ -237,7 +320,14 @@ export default function CardRecommendations({ result }: Props) {
       )}
 
       {/* Winner */}
-      {winner && <WinnerCard rec={winner} />}
+      {winner && (
+        <WinnerCard
+          rec={winner}
+          delta={winner.netAnnualValue - currentCardNetValue}
+          isCurrentCard={!isNone && winner.card.id === currentCardId}
+          isNone={isNone}
+        />
+      )}
 
       {/* Runner-ups */}
       {runnerUps.length > 0 && (
@@ -247,7 +337,13 @@ export default function CardRecommendations({ result }: Props) {
           </h3>
           <div className="space-y-3">
             {runnerUps.map((rec) => (
-              <RunnerUpCard key={rec.card.id} rec={rec} />
+              <RunnerUpCard
+                key={rec.card.id}
+                rec={rec}
+                delta={rec.netAnnualValue - currentCardNetValue}
+                isCurrentCard={!isNone && rec.card.id === currentCardId}
+                isNone={isNone}
+              />
             ))}
           </div>
         </div>
@@ -259,3 +355,17 @@ export default function CardRecommendations({ result }: Props) {
     </div>
   );
 }
+
+// Local lookup for card names by id (avoids re-importing CREDIT_CARDS which adds bundle weight)
+const CREDIT_CARDS_LOOKUP: Record<string, string> = {
+  "chase-sapphire-preferred": "Chase Sapphire Preferred",
+  "chase-sapphire-reserve": "Chase Sapphire Reserve",
+  "amex-gold": "American Express Gold Card",
+  "amex-platinum": "American Express Platinum",
+  "citi-double-cash": "Citi Double Cash",
+  "capital-one-venture-x": "Capital One Venture X",
+  "discover-it": "Discover it Cash Back",
+  "blue-cash-preferred": "Blue Cash Preferred (Amex)",
+  "chase-freedom-unlimited": "Chase Freedom Unlimited",
+  "wells-fargo-active-cash": "Wells Fargo Active Cash",
+};

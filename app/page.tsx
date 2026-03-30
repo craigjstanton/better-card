@@ -5,6 +5,7 @@ import FileUpload from "@/components/FileUpload";
 import SpendingChart from "@/components/SpendingChart";
 import CardRecommendations from "@/components/CardRecommendations";
 import { AnalysisResult } from "@/types";
+import { CREDIT_CARDS } from "@/lib/cards";
 
 const LOADING_MESSAGES = [
   "Reading your transactions…",
@@ -61,15 +62,76 @@ function LoadingState() {
   );
 }
 
+function CurrentCardPicker({
+  onSelect,
+}: {
+  onSelect: (cardId: string) => void;
+}) {
+  const [selected, setSelected] = useState("");
+
+  return (
+    <div className="max-w-md mx-auto px-4 sm:px-6 py-16">
+      <div className="text-center mb-8">
+        <div className="inline-flex w-14 h-14 bg-green-50 border border-green-100 rounded-2xl items-center justify-center text-2xl mb-4">
+          💳
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">One more thing…</h2>
+        <p className="text-gray-500 text-sm max-w-xs mx-auto">
+          What card are you using today? We&apos;ll show you exactly how much more you could earn.
+        </p>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+        <label className="block text-sm font-semibold text-gray-700">
+          Your current card
+        </label>
+
+        <div className="relative">
+          <select
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+            className="w-full rounded-xl border border-gray-200 px-4 py-3 pr-10 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent appearance-none cursor-pointer"
+          >
+            <option value="" disabled>Select your card…</option>
+            <option value="none">I don&apos;t have a rewards card</option>
+            {CREDIT_CARDS.map((card) => (
+              <option key={card.id} value={card.id}>
+                {card.name}
+              </option>
+            ))}
+          </select>
+          {/* Chevron */}
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+
+        <button
+          onClick={() => selected && onSelect(selected)}
+          disabled={!selected}
+          className="w-full py-3 px-4 bg-green-500 hover:bg-green-600 disabled:bg-gray-100 disabled:text-gray-400 text-white font-semibold rounded-xl transition-colors text-sm cursor-pointer disabled:cursor-not-allowed"
+        >
+          Show my results →
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  // null = not chosen yet, "none" = no card, or a card id
+  const [currentCardId, setCurrentCardId] = useState<string | null>(null);
 
   const handleUpload = async (file: File) => {
     setIsLoading(true);
     setError(null);
     setResult(null);
+    setCurrentCardId(null);
 
     try {
       const formData = new FormData();
@@ -88,6 +150,7 @@ export default function Home() {
       }
 
       setResult(data as AnalysisResult);
+      // currentCardId stays null → triggers the picker step
     } catch {
       setError("Network error. Please check your connection and try again.");
     } finally {
@@ -98,7 +161,12 @@ export default function Home() {
   const handleReset = () => {
     setResult(null);
     setError(null);
+    setCurrentCardId(null);
   };
+
+  const showUpload = !result && !isLoading;
+  const showPicker = result !== null && currentCardId === null;
+  const showResults = result !== null && currentCardId !== null;
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f7faf8]">
@@ -114,7 +182,7 @@ export default function Home() {
           <p className="text-sm text-gray-400 hidden sm:block">
             Find the card that works harder for you
           </p>
-          {result && (
+          {(result || error) && (
             <button
               onClick={handleReset}
               className="text-sm text-green-600 font-medium hover:text-green-700 transition-colors"
@@ -127,7 +195,7 @@ export default function Home() {
 
       {/* ── Main ── */}
       <main className="flex-1">
-        {!result && !isLoading && (
+        {showUpload && (
           <>
             {/* Hero */}
             <div className="bg-white border-b border-gray-100">
@@ -203,11 +271,16 @@ export default function Home() {
           </div>
         )}
 
+        {/* Current card picker — shown after analysis, before results */}
+        {showPicker && (
+          <CurrentCardPicker onSelect={setCurrentCardId} />
+        )}
+
         {/* Results */}
-        {result && (
+        {showResults && (
           <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10 space-y-8">
             <SpendingChart spending={result.spending} />
-            <CardRecommendations result={result} />
+            <CardRecommendations result={result} currentCardId={currentCardId!} />
           </div>
         )}
       </main>
