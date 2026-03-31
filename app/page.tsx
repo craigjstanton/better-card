@@ -201,10 +201,7 @@ export default function Home() {
             {/* Hero */}
             <div className="bg-white border-b border-gray-100">
               <div className="max-w-2xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
-                <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border border-green-100">
-                  ✦ Powered by Claude AI
-                </div>
-                <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight tracking-tight mb-4">
+<h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight tracking-tight mb-4">
                   Find the card that<br />
                   <span className="text-green-500">works harder</span> for you
                 </h1>
